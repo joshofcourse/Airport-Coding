@@ -1,0 +1,628 @@
+<title>Pacer Workout Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Big+Shoulders+Display:wght@700;800&display=swap">
+<style>
+/* Layout: one narrow column. Setup is a stack of steppers; the run screen fills the phone and tints itself by phase so you can read it from across the room. */
+:root {
+  --bg: #EDF0F3;
+  --surface: #FFFFFF;
+  --ink: #14181E;
+  --muted: #5C6571;
+  --line: #D3D9E0;
+  --work: #D93A2B;
+  --rest: #1C78A3;
+  --ready: #B87D00;
+  --done: #2A8552;
+  --on-accent: #FFFFFF;
+  --font-display: 'Big Shoulders Display', 'Arial Narrow', Impact, sans-serif;
+  --font-body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1216; --surface: #191E25; --ink: #EDF0F3; --muted: #98A1AD; --line: #2A313B;
+    --work: #FF5A47; --rest: #3EB2E0; --ready: #F2B544; --done: #4CC38A; --on-accent: #0F1216;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1216; --surface: #191E25; --ink: #EDF0F3; --muted: #98A1AD; --line: #2A313B;
+  --work: #FF5A47; --rest: #3EB2E0; --ready: #F2B544; --done: #4CC38A; --on-accent: #0F1216;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--rest); outline-offset: 2px; }
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 20px 28px;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* ---------- Setup ---------- */
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2.6rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1;
+}
+.brand p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.label-caps {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+
+.fields {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+}
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+.field + .field { border-top: 1px solid var(--line); }
+.field-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field-text label { font-weight: 600; font-size: 1.05rem; }
+.field-text .hint { color: var(--muted); font-size: 0.82rem; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: 1px; }
+.stepper { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.stepper button {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 1.4rem;
+  line-height: 1;
+  display: grid; place-items: center;
+}
+.stepper input {
+  width: 4.6ch;
+  text-align: center;
+  border: none;
+  background: transparent;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.9rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+}
+
+.summary { display: flex; flex-direction: column; gap: 4px; padding-inline: 4px; }
+.summary strong { font-size: 1.05rem; }
+.summary span { color: var(--muted); font-size: 0.9rem; }
+
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-inline: 4px; }
+.toggle label { font-weight: 500; }
+.toggle input { width: 22px; height: 22px; accent-color: var(--ink); }
+
+.start {
+  margin-top: auto;
+  border: none;
+  border-radius: 16px;
+  background: var(--work);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 18px;
+}
+
+/* ---------- Run ---------- */
+.run {
+  --phase: var(--ready);
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  background: color-mix(in srgb, var(--phase) 15%, var(--bg));
+  transition: background-color 0.35s ease;
+  overflow-y: auto;
+}
+.run[data-phase="work"] { --phase: var(--work); }
+.run[data-phase="rest"] { --phase: var(--rest); }
+.run[data-phase="done"] { --phase: var(--done); }
+.run .app {
+  padding-block: calc(20px + env(safe-area-inset-top, 0px)) calc(24px + env(safe-area-inset-bottom, 0px));
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.run-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.phase-pill {
+  background: var(--phase);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 10px;
+}
+.round { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+.dial { position: relative; width: min(100%, 360px); aspect-ratio: 1; max-width: 100%; margin: 0 auto; }
+.dial svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+.dial .track { fill: none; stroke: var(--line); stroke-width: 6; }
+.dial .arc { fill: none; stroke: var(--phase); stroke-width: 6; stroke-linecap: round; }
+.dial-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+.digits {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(5rem, 26vw, 8.5rem);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+.total-left { color: var(--muted); font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+
+.next { text-align: center; font-size: 1.05rem; font-weight: 500; margin: 0; min-height: 1.4em; }
+
+.strip { display: flex; gap: 3px; height: 14px; }
+.seg { position: relative; flex-basis: 0; min-width: 3px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.seg.work::before, .seg.rest::before, .seg.ready::before { content: ""; position: absolute; inset: 0; opacity: 0.35; }
+.seg.work::before { background: var(--work); }
+.seg.rest::before { background: var(--rest); }
+.seg.ready::before { background: var(--ready); }
+.seg .fill { position: absolute; inset: 0 auto 0 0; width: 0; }
+.seg.work .fill { background: var(--work); }
+.seg.rest .fill { background: var(--rest); }
+.seg.ready .fill { background: var(--ready); }
+.seg.past .fill { width: 100%; }
+
+.controls { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 10px; }
+.controls button {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-weight: 600;
+  padding: 16px 8px;
+}
+.controls .primary {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run { transition: none; }
+}
+</style>
+
+<main class="app" id="setup">
+  <header class="brand">
+    <h1>Pacer</h1>
+    <p>Interval workout timer</p>
+  </header>
+
+  <section>
+    <p class="label-caps">Presets</p>
+    <div class="presets" id="presets"></div>
+  </section>
+
+  <section class="fields" aria-label="Timer settings">
+    <div class="field">
+      <div class="field-text">
+        <label for="total">Total time</label>
+        <span class="hint">The whole workout, in minutes</span>
+      </div>
+      <div class="stepper">
+        <button type="button" data-key="total" data-step="-60" aria-label="One minute less">−</button>
+        <input id="total" inputmode="numeric" autocomplete="off" aria-describedby="summary-main">
+        <button type="button" data-key="total" data-step="60" aria-label="One minute more">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-text">
+        <label for="work"><span class="swatch" style="background:var(--work)"></span>Interval</label>
+        <span class="hint">How long each work interval runs</span>
+      </div>
+      <div class="stepper">
+        <button type="button" data-key="work" data-step="-5" aria-label="Five seconds less">−</button>
+        <input id="work" inputmode="numeric" autocomplete="off">
+        <button type="button" data-key="work" data-step="5" aria-label="Five seconds more">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-text">
+        <label for="rest"><span class="swatch" style="background:var(--rest)"></span>Rest</label>
+        <span class="hint">Break between intervals (0 for none)</span>
+      </div>
+      <div class="stepper">
+        <button type="button" data-key="rest" data-step="-5" aria-label="Five seconds less">−</button>
+        <input id="rest" inputmode="numeric" autocomplete="off">
+        <button type="button" data-key="rest" data-step="5" aria-label="Five seconds more">+</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="summary">
+    <strong id="summary-main"></strong>
+    <span id="summary-sub"></span>
+  </div>
+
+  <div class="toggle">
+    <label for="sound">Beep before each switch</label>
+    <input type="checkbox" id="sound">
+  </div>
+
+  <button type="button" class="start" id="start">Start</button>
+</main>
+
+<div class="run" id="run" hidden data-phase="ready">
+  <div class="app">
+    <div class="run-top">
+      <span class="phase-pill" id="phase">Get ready</span>
+      <span class="round" id="round"></span>
+    </div>
+
+    <div class="dial">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="track" cx="50" cy="50" r="45"></circle>
+        <circle class="arc" id="arc" cx="50" cy="50" r="45"></circle>
+      </svg>
+      <div class="dial-center">
+        <div class="digits" id="digits" aria-live="off">0:05</div>
+        <div class="total-left" id="total-left"></div>
+      </div>
+    </div>
+
+    <p class="next" id="next"></p>
+
+    <div class="strip" id="strip" aria-hidden="true"></div>
+
+    <div class="controls">
+      <button type="button" id="end">End</button>
+      <button type="button" class="primary" id="toggle">Pause</button>
+      <button type="button" id="skip">Skip</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const READY_SECONDS = 5;
+  const LIMITS = { total: [10, 3 * 3600], work: [5, 3600], rest: [0, 3600] };
+  const PRESETS = [
+    { name: 'Tabata', total: 240, work: 20, rest: 10 },
+    { name: 'EMOM 10', total: 600, work: 60, rest: 0 },
+    { name: '30 on / 30 off', total: 600, work: 30, rest: 30 },
+    { name: '45 / 15', total: 900, work: 45, rest: 15 },
+  ];
+  const STORE_KEY = 'pacer.settings.v1';
+  const LABELS = { ready: 'Get ready', work: 'Work', rest: 'Rest', done: 'Done' };
+
+  const S = { total: 240, work: 20, rest: 10, sound: true };
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+    if (saved) Object.assign(S, saved);
+  } catch (e) {}
+  const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} };
+
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- Formatting ----------
+  function fmt(sec) {
+    sec = Math.max(0, Math.round(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    const ss = String(s).padStart(2, '0');
+    return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+  }
+  // "1:30" is always m:ss. A bare number means minutes for total time, seconds otherwise.
+  function parse(str, key) {
+    str = String(str).trim();
+    if (!str) return null;
+    if (str.includes(':')) {
+      const parts = str.split(':').map((p) => parseInt(p, 10) || 0);
+      return parts.reduce((acc, p) => acc * 60 + p, 0);
+    }
+    const n = parseFloat(str);
+    if (isNaN(n)) return null;
+    return Math.round(key === 'total' ? n * 60 : n);
+  }
+  const clamp = (key, v) => Math.min(LIMITS[key][1], Math.max(LIMITS[key][0], v));
+
+  // ---------- Plan ----------
+  function buildPlan() {
+    const segs = [{ kind: 'ready', dur: READY_SECONDS, round: 0 }];
+    let left = S.total, round = 0;
+    while (left > 0) {
+      round++;
+      const w = Math.min(S.work, left);
+      segs.push({ kind: 'work', dur: w, round });
+      left -= w;
+      if (left <= 0 || S.rest <= 0) continue;
+      const r = Math.min(S.rest, left);
+      segs.push({ kind: 'rest', dur: r, round });
+      left -= r;
+    }
+    if (segs[segs.length - 1].kind === 'rest') segs.pop();
+    const last = segs[segs.length - 1];
+    return { segs, rounds: round, shortLast: last.dur < S.work ? last.dur : 0 };
+  }
+
+  // ---------- Setup screen ----------
+  const presetBox = $('presets');
+  PRESETS.forEach((p) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = p.name;
+    b.addEventListener('click', () => { S.total = p.total; S.work = p.work; S.rest = p.rest; save(); renderSetup(); });
+    presetBox.appendChild(b);
+  });
+
+  function renderSetup() {
+    $('total').value = fmt(S.total);
+    $('work').value = fmt(S.work);
+    $('rest').value = fmt(S.rest);
+    $('sound').checked = !!S.sound;
+    [...presetBox.children].forEach((b, i) => {
+      const p = PRESETS[i];
+      b.setAttribute('aria-pressed', String(p.total === S.total && p.work === S.work && p.rest === S.rest));
+    });
+    const plan = buildPlan();
+    const n = plan.rounds;
+    $('summary-main').textContent = S.rest > 0
+      ? `${n} ${n === 1 ? 'round' : 'rounds'} of ${fmt(S.work)} work + ${fmt(S.rest)} rest`
+      : `${n} ${n === 1 ? 'interval' : 'intervals'} of ${fmt(S.work)}, back to back`;
+    const sub = [`${fmt(S.total)} total after a ${READY_SECONDS}-second countdown.`];
+    if (plan.shortLast) sub.push(`The last interval is cut to ${fmt(plan.shortLast)} to fit.`);
+    $('summary-sub').textContent = sub.join(' ');
+  }
+
+  document.querySelectorAll('.stepper button').forEach((b) => {
+    b.addEventListener('click', () => {
+      const key = b.dataset.key;
+      S[key] = clamp(key, S[key] + Number(b.dataset.step));
+      save(); renderSetup();
+    });
+  });
+  ['total', 'work', 'rest'].forEach((key) => {
+    const input = $(key);
+    input.addEventListener('focus', () => input.select());
+    input.addEventListener('change', () => {
+      const v = parse(input.value, key);
+      if (v !== null) S[key] = clamp(key, v);
+      save(); renderSetup();
+    });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+  });
+  $('sound').addEventListener('change', (e) => { S.sound = e.target.checked; save(); });
+
+  // ---------- Sound ----------
+  let ctx = null;
+  function ensureAudio() {
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+    } catch (e) { ctx = null; }
+  }
+  function beep(freq, dur, when = 0) {
+    if (!ctx || !S.sound) return;
+    try {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      const t = ctx.currentTime + when;
+      o.type = 'square';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t + dur + 0.05);
+    } catch (e) {}
+  }
+
+  // ---------- Keep screen awake ----------
+  let wakeLock = null;
+  async function holdWake() {
+    try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) { wakeLock = null; }
+  }
+  function dropWake() { try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null; }
+
+  // ---------- Runner ----------
+  const C = 2 * Math.PI * 45;
+  const arc = $('arc');
+  arc.style.strokeDasharray = C;
+  let run = null, timer = null;
+
+  function buildStrip() {
+    const strip = $('strip');
+    strip.textContent = '';
+    run.segs.forEach((s) => {
+      const d = document.createElement('div');
+      d.className = `seg ${s.kind}`;
+      d.style.flexGrow = s.dur;
+      const f = document.createElement('div');
+      f.className = 'fill';
+      d.appendChild(f);
+      strip.appendChild(d);
+    });
+  }
+
+  function start() {
+    ensureAudio();
+    const plan = buildPlan();
+    run = { ...plan, idx: 0, end: performance.now() + plan.segs[0].dur * 1000, paused: false, remain: 0, lastWhole: null, done: false };
+    buildStrip();
+    $('setup').hidden = true;
+    $('run').hidden = false;
+    $('toggle').textContent = 'Pause';
+    holdWake();
+    clearInterval(timer);
+    timer = setInterval(tick, 100);
+    tick();
+  }
+
+  function phaseStarted() {
+    const seg = run.segs[run.idx];
+    run.lastWhole = null;
+    if (seg.kind === 'work') beep(880, 0.45);
+    else if (seg.kind === 'rest') beep(520, 0.45);
+  }
+
+  function tick() {
+    if (!run || run.done) return;
+    const now = performance.now();
+    let rem = run.paused ? run.remain : run.end - now;
+    let changed = false;
+    while (rem <= 0 && !run.paused) {
+      run.idx++;
+      if (run.idx >= run.segs.length) { finish(); return; }
+      run.end += run.segs[run.idx].dur * 1000;
+      rem = run.end - now;
+      changed = true;
+    }
+    if (changed) phaseStarted();
+    const whole = Math.ceil(rem / 1000);
+    if (whole !== run.lastWhole) {
+      if (run.lastWhole !== null && whole >= 1 && whole <= 3 && !run.paused) beep(660, 0.12);
+      run.lastWhole = whole;
+    }
+    render(rem);
+  }
+
+  function render(rem) {
+    const seg = run.segs[run.idx];
+    $('run').dataset.phase = seg.kind;
+    $('phase').textContent = LABELS[seg.kind];
+    $('round').textContent = seg.kind === 'ready'
+      ? `${run.rounds} ${run.rounds === 1 ? 'round' : 'rounds'}`
+      : `Round ${seg.round} of ${run.rounds}`;
+    $('digits').textContent = fmt(Math.ceil(rem / 1000));
+    const frac = Math.max(0, Math.min(1, rem / (seg.dur * 1000)));
+    arc.style.strokeDashoffset = C * (1 - frac);
+    let later = 0;
+    for (let i = run.idx + 1; i < run.segs.length; i++) later += run.segs[i].dur;
+    const workLeft = seg.kind === 'ready' ? later : later + rem / 1000;
+    $('total-left').textContent = run.paused ? 'Paused' : `${fmt(Math.ceil(workLeft))} left`;
+    const nxt = run.segs[run.idx + 1];
+    $('next').textContent = nxt ? `Next: ${LABELS[nxt.kind]} ${fmt(nxt.dur)}` : 'Last interval';
+    const segEls = $('strip').children;
+    for (let i = 0; i < segEls.length; i++) {
+      segEls[i].classList.toggle('past', i < run.idx);
+      segEls[i].firstChild.style.width = i === run.idx ? `${(1 - frac) * 100}%` : '';
+    }
+  }
+
+  function finish() {
+    run.done = true;
+    clearInterval(timer);
+    dropWake();
+    beep(880, 0.15, 0); beep(880, 0.15, 0.22); beep(1175, 0.5, 0.44);
+    const r = $('run');
+    r.dataset.phase = 'done';
+    $('phase').textContent = LABELS.done;
+    $('round').textContent = `${run.rounds} ${run.rounds === 1 ? 'round' : 'rounds'} complete`;
+    $('digits').textContent = '0:00';
+    arc.style.strokeDashoffset = 0;
+    $('total-left').textContent = `${fmt(S.total)} of work`;
+    $('next').textContent = 'Nice work.';
+    [...$('strip').children].forEach((el) => { el.classList.add('past'); el.firstChild.style.width = ''; });
+    $('toggle').textContent = 'Again';
+  }
+
+  function togglePause() {
+    if (!run) return;
+    if (run.done) { start(); return; }
+    ensureAudio();
+    if (run.paused) {
+      run.paused = false;
+      run.end = performance.now() + run.remain;
+      $('toggle').textContent = 'Pause';
+      holdWake();
+    } else {
+      run.remain = run.end - performance.now();
+      run.paused = true;
+      $('toggle').textContent = 'Resume';
+    }
+    tick();
+  }
+
+  function skip() {
+    if (!run || run.done) return;
+    if (run.idx + 1 >= run.segs.length) { finish(); return; }
+    if (run.paused) {
+      run.idx++;
+      run.remain = run.segs[run.idx].dur * 1000;
+      run.lastWhole = null;
+      tick();
+    } else {
+      run.end = performance.now();
+      tick();
+    }
+  }
+
+  function end() {
+    clearInterval(timer);
+    run = null;
+    dropWake();
+    $('run').hidden = true;
+    $('setup').hidden = false;
+    renderSetup();
+  }
+
+  $('start').addEventListener('click', start);
+  $('toggle').addEventListener('click', togglePause);
+  $('skip').addEventListener('click', skip);
+  $('end').addEventListener('click', end);
+  document.addEventListener('keydown', (e) => {
+    if (!run || e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); togglePause(); }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && run && !run.paused && !run.done) { holdWake(); tick(); }
+  });
+
+  renderSetup();
+})();
+</script>
